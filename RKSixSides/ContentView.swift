@@ -78,8 +78,18 @@ class CubeSpaceView: ARView {
     
     @objc func handlePan(sender:UIPanGestureRecognizer){
         let v = sender.velocity(in: arView)
+        let t = sender.translation(in: arView)
+
         self.cubeState.velocityX = Float(v.x)
-        self.cubeState.rotationX = self.cubeState.rotationX + Float(v.x) * 0.0001
+        self.cubeState.velocityY = Float(v.y)
+        
+        if abs(t.x) > abs(t.y) {
+            self.cubeState.rotationX = self.cubeState.rotationX + Float(v.x) * 0.0001
+        }
+        else {
+            self.cubeState.rotationY = self.cubeState.rotationY + Float(v.y) * 0.0001
+        }
+
         
         self.cubeState.panningState = sender.state
     }
@@ -87,13 +97,19 @@ class CubeSpaceView: ARView {
     func setup(){
 
         let faceAnchor = Entity()
+        let frontFaceRed = UIColor(red: 226/255, green: 56/255, blue: 56/255, alpha: 1)
+        let topFaceLime = UIColor(red: 94/255, green: 189/255, blue: 62/255, alpha: 1)//(94, 189, 62)
+        let backFaceYellow : UIColor = .yellow //UIColor(red: 255/255, green: 185/255, blue: 0/255, alpha: 1)//(255, 185, 0)
+        let bottomFaceOrange = UIColor(red: 247/255, green: 130/255, blue: 0/255, alpha: 1)//(247, 130, 0)
+        let leftFacePurple = UIColor(red: 151/255, green: 57/255, blue: 153/255, alpha: 1) //(151, 57, 153)
+        let rightFaceBlue = UIColor(red: 0/255, green: 156/255, blue: 223/255, alpha: 1) //(0, 156, 223)
 
-        let frontFace = getSinglePlane(width: 5, depth: 5, color: .yellow, x: 0, y: 0, z: 2.5, rotationAngle: Float(Double.pi / 2),rotationAxis: SIMD3<Float>(1,0,0))
-        let bottomFace = getSinglePlane(width: 5, depth: 5, color: .red, x: 0, y: -2.5, z: 0, rotationAngle: Float(Double.pi),rotationAxis: SIMD3<Float>(1,0,0))
-        let topFace = getSinglePlane(width: 5, depth: 5, color: .green, x: 0, y: 2.5, z: 0, rotationAngle: 0,rotationAxis: SIMD3<Float>(0,1,0))
-        let leftFace = getSinglePlane(width: 5, depth: 5, color: .blue, x: -2.5, y: 0, z: 0, rotationAngle: Float(Double.pi / 2),rotationAxis: SIMD3<Float>(0,0,1))
-        let rightFace = getSinglePlane(width: 5, depth: 5, color: .purple, x: 2.5, y: 0, z: 0, rotationAngle: -Float(Double.pi / 2),rotationAxis: SIMD3<Float>(0,0,1))
-        let backFace = getSinglePlane(width: 5, depth: 5, color: .white, x: 0, y: 0, z: -2.5, rotationAngle: -Float(Double.pi / 2),rotationAxis: SIMD3<Float>(1,0,0))
+        let frontFace = getSinglePlane(width: 5, depth: 5, color: frontFaceRed, x: 0, y: 0, z: 2.5, rotationAngle: Float(Double.pi / 2),rotationAxis: SIMD3<Float>(1,0,0))
+        let bottomFace = getSinglePlane(width: 5, depth: 5, color: bottomFaceOrange, x: 0, y: -2.5, z: 0, rotationAngle: Float(Double.pi),rotationAxis: SIMD3<Float>(1,0,0))
+        let topFace = getSinglePlane(width: 5, depth: 5, color: topFaceLime, x: 0, y: 2.5, z: 0, rotationAngle: 0,rotationAxis: SIMD3<Float>(0,1,0))
+        let leftFace = getSinglePlane(width: 5, depth: 5, color: leftFacePurple, x: -2.5, y: 0, z: 0, rotationAngle: Float(Double.pi / 2),rotationAxis: SIMD3<Float>(0,0,1))
+        let rightFace = getSinglePlane(width: 5, depth: 5, color: rightFaceBlue, x: 2.5, y: 0, z: 0, rotationAngle: -Float(Double.pi / 2),rotationAxis: SIMD3<Float>(0,0,1))
+        let backFace = getSinglePlane(width: 5, depth: 5, color: backFaceYellow, x: 0, y: 0, z: -2.5, rotationAngle: -Float(Double.pi / 2),rotationAxis: SIMD3<Float>(1,0,0))
         
         let axesAnchors = AnchorEntity(world: [0,0,0])
 
@@ -111,89 +127,34 @@ class CubeSpaceView: ARView {
 
         let camera = PerspectiveCamera()
         let cameraAnchor = AnchorEntity(world:[0,0,0])
-        camera.look(at: SIMD3<Float>(x: 0, y: 0, z: 0), from: SIMD3<Float>(x: 0, y: 0, z: 20), relativeTo: nil)
+        camera.look(at: SIMD3<Float>(x: 0, y: 0, z: 0), from: SIMD3<Float>(x: -10, y: 10, z: 20), relativeTo: nil)
         cameraAnchor.addChild(camera)
         arView.scene.addAnchor(cameraAnchor)
 
         var rotationX_Matrix : float4x4 = float4x4()
-        var targetRotation : Float = 0.0
+        var rotationY_Matrix : float4x4 = float4x4()
         self.cubeUpdate = scene.subscribe(to: SceneEvents.Update.self) { event in
-            //print("v.x:\(self.cubeState.velocityX) v.y\(self.cubeState.velocityY)")
             if self.cubeState.panningState == .began {
 
             }
             else if self.cubeState.panningState == .changed {
-                print("Changing...")
-                print("velocityX: \(self.cubeState.velocityX)")
-                //need to know which direction the cube is going (velocityX)
-                //need to know the breaking point and the upper and lower bound
-                //for example:
-                //0 | 45 | 90
-                //90 | 135 | 180
-                //180 | 225 | 270
-                //270 | 315 | 360
-
-                if abs(self.cubeState.rotationX) > Float(Double.pi / 4) {
-                    targetRotation = -Float(Double.pi / 2)
-                }
-                else {
-                    targetRotation = 0
-                }
-                print("Target Rotation: \(targetRotation)")
 
             }
             else if self.cubeState.panningState == .ended {
-                print("Ended...")
-                if targetRotation == 0 {
-                    self.cubeState.rotationX = self.cubeState.rotationX * 0.9
-                }
-                else {
-                    self.cubeState.rotationX = self.cubeState.rotationX + (Float(Double.pi/2) - self.cubeState.rotationX) * 0.1
-                }
-
+                let x1 = self.cubeState.rotationX / Float(Double.pi / 2)
+                let nearest_increment : Float = round(x1) * Float(Double.pi / 2)
+                self.cubeState.rotationX = self.cubeState.rotationX + (Float(nearest_increment) - self.cubeState.rotationX) * 0.1
+                
+                let y1 = self.cubeState.rotationY / Float(Double.pi / 2)
+                let nearest_y_increment : Float = round(y1) * Float(Double.pi / 2)
+                self.cubeState.rotationY = self.cubeState.rotationY + (Float(nearest_y_increment) - self.cubeState.rotationY) * 0.1
             }
-            
-            //.possible = 0
-            //.began = 1
-            //.changed = 2
-            //.ended = 3
-            //.cancelled = 4
-            //.failed = 5
-            //print("self.cubeState.panningState: \(self.cubeState.panningState)")
 
-            //self.cubeState.rotationX = self.cubeState.rotationX + self.cubeState.velocityX * 0.0001
             rotationX_Matrix = self.getRotationMatrix(angle: self.cubeState.rotationX, axis: "y")
+            rotationY_Matrix = self.getRotationMatrix(angle: self.cubeState.rotationY, axis: "x")
 
-            let anchorTransform = Transform(matrix: rotationX_Matrix)
+            let anchorTransform = Transform(matrix: rotationX_Matrix * rotationY_Matrix)
             faceAnchor.transform = anchorTransform
-
-//pi = 180 deg
-//rad
-            //print(Float(self.cubeState.rotationX) * Float(180/Double.pi))
-//            if abs(self.cubeState.velocityX) > 100 {
-//                if self.cubeState.velocityX > 100 {
-//                    self.cubeState.velocityX = round(self.cubeState.velocityX) - 100
-//                }
-//                else {
-//                    self.cubeState.velocityX = round(self.cubeState.velocityX) + 100
-//                }
-//            }
-//            else if abs(self.cubeState.velocityX) > 10 {
-//                if self.cubeState.velocityX > 0 {
-//                    self.cubeState.velocityX = round(self.cubeState.velocityX) - 10
-//                }
-//                else {
-//                    self.cubeState.velocityX = round(self.cubeState.velocityX) + 10
-//                }
-//            }
-//            else if abs(self.cubeState.velocityX) > 0 {
-//                if self.cubeState.velocityX > 0 {
-//                    self.cubeState.velocityX = round(self.cubeState.velocityX) - 1
-//                }
-//                else {
-//                    self.cubeState.velocityX = round(self.cubeState.velocityX) + 1
-//                }
-//            }
         }
     }
 }
